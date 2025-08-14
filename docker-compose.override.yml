@@ -1,0 +1,115 @@
+# JobDone PeerDB Override - External PostgreSQL Configuration
+# This file overrides settings to use external PostgreSQL
+# Docker Compose automatically loads this file with docker-compose.yml
+
+# Override the anchor definitions to use external PostgreSQL
+x-catalog-config: &catalog-config
+  PEERDB_CATALOG_HOST: ${PEERDB_CATALOG_HOST}
+  PEERDB_CATALOG_PORT: ${PEERDB_CATALOG_PORT}
+  PEERDB_CATALOG_USER: ${PEERDB_CATALOG_USER}
+  PEERDB_CATALOG_PASSWORD: ${PEERDB_CATALOG_PASSWORD}
+  PEERDB_CATALOG_DATABASE: ${PEERDB_CATALOG_DATABASE}
+
+x-minio-config: &minio-config
+  PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+  PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+  PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: us-east-1
+  PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ENDPOINT_URL_S3: http://host.docker.internal:9001
+  PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: peerdbbucket
+  MINIO_DEFAULT_BUCKETS: peerdbbucket
+  MINIO_CONSOLE_PORT_NUMBER: 36987
+
+services:
+  # Replace local catalog with dummy service (satisfies dependencies but doesn't run PostgreSQL)
+  catalog:
+    image: busybox:latest
+    command: "true"
+    restart: "no"
+
+  # Override Temporal to use external PostgreSQL
+  temporal:
+    environment:
+      - DB=postgres12
+      - DB_PORT=${PEERDB_CATALOG_PORT}
+      - POSTGRES_USER=${PEERDB_CATALOG_USER}
+      - POSTGRES_PWD=${PEERDB_CATALOG_PASSWORD}
+      - POSTGRES_SEEDS=${PEERDB_CATALOG_HOST}
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    depends_on: []  # Remove dependency on local catalog
+
+  # Override temporal-admin-tools dependencies
+  temporal-admin-tools:
+    depends_on:
+      - temporal
+
+  # Override flow-api with external catalog config
+  flow-api:
+    environment:
+      <<: [*catalog-config, *minio-config]
+      TEMPORAL_HOST_PORT: temporal:7233
+      TEMPORAL_CLIENT_CERT:
+      TEMPORAL_CLIENT_KEY:
+      PEERDB_TEMPORAL_NAMESPACE: default
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      PEERDB_ALLOWED_TARGETS: ${PEERDB_ALLOWED_TARGETS:-}
+    depends_on:
+      temporal-admin-tools:
+        condition: service_healthy
+
+  # Override flow-snapshot-worker with external catalog config
+  flow-snapshot-worker:
+    environment:
+      <<: [*catalog-config, *minio-config]
+      TEMPORAL_HOST_PORT: temporal:7233
+      TEMPORAL_CLIENT_CERT:
+      TEMPORAL_CLIENT_KEY:
+      PEERDB_TEMPORAL_NAMESPACE: default
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+
+  # Override flow-worker with external catalog config
+  flow-worker:
+    environment:
+      <<: [*catalog-config, *minio-config]
+      TEMPORAL_HOST_PORT: temporal:7233
+      TEMPORAL_CLIENT_CERT:
+      TEMPORAL_CLIENT_KEY:
+      PEERDB_TEMPORAL_NAMESPACE: default
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+
+  # Override peerdb server
+  peerdb:
+    environment:
+      <<: *catalog-config
+      PEERDB_PASSWORD: ${PEERDB_PASSWORD}
+      PEERDB_FLOW_SERVER_ADDRESS: grpc://flow_api:8112
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+    depends_on: []  # Remove dependency on local catalog
+
+  # Override peerdb-ui with external DATABASE_URL
+  peerdb-ui:
+    environment:
+      <<: *catalog-config
+      DATABASE_URL: postgres://${PEERDB_CATALOG_USER}:${PEERDB_CATALOG_PASSWORD}@${PEERDB_CATALOG_HOST}:${PEERDB_CATALOG_PORT}/${PEERDB_CATALOG_DATABASE}
+      PEERDB_FLOW_SERVER_HTTP: http://flow_api:8113
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      PEERDB_ALLOWED_TARGETS: ${PEERDB_ALLOWED_TARGETS:-}
+      PEERDB_CLICKHOUSE_ALLOWED_DOMAINS: ${PEERDB_CLICKHOUSE_ALLOWED_DOMAINS:-}
+      PEERDB_EXPERIMENTAL_ENABLE_SCRIPTING: ${PEERDB_EXPERIMENTAL_ENABLE_SCRIPTING:-true}
+
+  # Override MinIO with secure passwords
+  minio:
+    environment:
+      <<: *minio-config
