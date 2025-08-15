@@ -23,6 +23,21 @@ if test -n "$USE_PODMAN"; then
     DOCKER="podman"
 fi
 
+# Check Docker/Podman access
+if ! $DOCKER ps >/dev/null 2>&1; then
+    echo "Error: Cannot access Docker daemon. Permission denied."
+    echo ""
+    echo "To fix this, either:"
+    echo "1. Add your user to the docker group:"
+    echo "   sudo usermod -aG docker \$USER"
+    echo "   newgrp docker"
+    echo ""
+    echo "2. Or run with sudo:"
+    echo "   sudo ./jobdone.sh up"
+    echo ""
+    exit 1
+fi
+
 # Check if .env.jobdone exists
 if [ ! -f .env.jobdone ]; then
     echo "Error: .env.jobdone not found!"
@@ -34,7 +49,7 @@ fi
 
 # Load environment variables
 set -a
-. .env.jobdone
+. ./.env.jobdone
 set +a
 
 # Validate required variables

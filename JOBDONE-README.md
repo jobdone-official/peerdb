@@ -9,6 +9,32 @@ This setup allows you to run PeerDB with your own external PostgreSQL database w
 - `jobdone.sh` - Simple startup script
 - `.gitignore` - Configured to ignore `.env.jobdone` with your secrets
 
+## Prerequisites
+
+- Docker or Podman installed
+- Access to Docker daemon (user must be in `docker` group or have sudo access)
+- External PostgreSQL database
+
+### Docker Permission Setup
+
+If you get a "permission denied" error when accessing Docker:
+
+```bash
+# Add your user to the docker group
+sudo usermod -aG docker $USER
+
+# Apply the group change (or logout and login again)
+newgrp docker
+
+# Verify Docker access
+docker ps
+```
+
+Alternatively, you can run with sudo:
+```bash
+sudo ./jobdone.sh up
+```
+
 ## Setup Instructions
 
 1. **Copy the template and configure your PostgreSQL connection**:
