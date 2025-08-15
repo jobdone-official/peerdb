@@ -34,14 +34,18 @@ services:
       retries: 3
       start_period: 10s
 
-  # Override Temporal to use external PostgreSQL
+  # Override Temporal to use external PostgreSQL with pre-created databases
   temporal:
     environment:
       - DB=postgres12
-      - DB_PORT=${PEERDB_CATALOG_PORT}
-      - POSTGRES_USER=${PEERDB_CATALOG_USER}
-      - POSTGRES_PWD=${PEERDB_CATALOG_PASSWORD}
-      - POSTGRES_SEEDS=${PEERDB_CATALOG_HOST}
+      - DB_PORT=${TEMPORAL_DB_PORT:-${PEERDB_CATALOG_PORT}}
+      - POSTGRES_USER=${TEMPORAL_DB_USER:-${PEERDB_CATALOG_USER}}
+      - POSTGRES_PWD=${TEMPORAL_DB_PASSWORD:-${PEERDB_CATALOG_PASSWORD}}
+      - POSTGRES_SEEDS=${TEMPORAL_DB_HOST:-${PEERDB_CATALOG_HOST}}
+      - DBNAME=${TEMPORAL_DATABASE:-temporal}
+      - VISIBILITY_DBNAME=${TEMPORAL_VISIBILITY_DATABASE:-temporal_visibility}
+      - SKIP_DB_CREATE=true
+      - SKIP_SCHEMA_SETUP=false
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     depends_on: []  # Remove dependency on local catalog
 
