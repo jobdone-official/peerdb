@@ -65,7 +65,11 @@ case "${1:-up}" in
         echo "PostgreSQL: $PEERDB_CATALOG_HOST:$PEERDB_CATALOG_PORT/$PEERDB_CATALOG_DATABASE"
         $DOCKER compose pull
         # Note: docker-compose.override.yml is automatically loaded
-        exec $DOCKER compose up --no-attach temporal --no-attach temporal-ui --no-attach temporal-admin-tools
+        if [ "${2:-}" = "-d" ]; then
+            exec $DOCKER compose up -d
+        else
+            exec $DOCKER compose up --no-attach temporal --no-attach temporal-ui --no-attach temporal-admin-tools
+        fi
         ;;
     
     up-all)

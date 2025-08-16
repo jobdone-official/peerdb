@@ -64,6 +64,7 @@ sudo ./jobdone.sh up
 ```bash
 # Start PeerDB
 ./jobdone.sh up
+./jobdone.sh up -d  # Run in background
 
 # Stop PeerDB
 ./jobdone.sh down
@@ -71,6 +72,7 @@ sudo ./jobdone.sh up
 # View logs
 ./jobdone.sh logs
 ./jobdone.sh logs -f flow-api  # Follow specific service
+./jobdone.sh logs -f --since=1m  # Show logs from last minute
 
 # Check status
 ./jobdone.sh ps
